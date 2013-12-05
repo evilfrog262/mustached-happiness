@@ -25,26 +25,24 @@ int MFS_Init(char *hostname, int port) {
 }
 
 int MFS_Lookup(int pinum, char *name) {
-   //sent = malloc(sizeof(MFS_Message_t));
    sent.pinum = pinum;
-   sent.name = name;
+   sprintf(sent.name, name);
    sent.command = LOOKUP;
    // set unused values to -1
    sent.block = -1;
    sent.type = -1;
    sent.inum = -1;
-   sent.buffer = NULL;
    int inum = sendMessage();
+   printf("name in MFS: %s\n", sent.name);
    return inum;
 }
 
 int MFS_Write(int inum, char *buffer, int block) {
    sent.command = WRITE;
    sent.inum = inum;
-   sent.buffer = buffer;
+   sprintf(sent.buffer, buffer);
    sent.block = block;
    // set unused values to -1
-   sent.name = NULL;
    sent.type = -1;
    sent.pinum = -1;
    int succ = sendMessage();
@@ -54,10 +52,10 @@ int MFS_Write(int inum, char *buffer, int block) {
 int MFS_Read(int inum, char *buffer, int  block) {
    sent.command = READ;
    sent.inum = inum;
-   sent.buffer = buffer;
+   sprintf(sent.buffer, buffer);
    sent.block = block;
    // set unused values to -1
-   sent.name = NULL;
+   //sent.name = NULL;
    sent.type = -1;
    sent.pinum = -1;
    int succ = sendMessage();
@@ -68,10 +66,9 @@ int MFS_Creat(int pinum, int type, char *name) {
    sent.command = CREAT;
    sent.pinum = pinum;
    sent.type = type;
-   sent.name = name;
+   sprintf(sent.name, name);
    // set unused values to -1
    sent.inum = -1;
-   sent.buffer = NULL;
    sent.block = -1;
    int succ = sendMessage();
    return succ;
@@ -80,11 +77,10 @@ int MFS_Creat(int pinum, int type, char *name) {
 int MFS_Unlink(int pinum, char *name) {
    sent.command = UNLINK;
    sent.pinum = pinum;
-   sent.name = name;
+   sprintf(sent.name, name);
    // set unused values to -1 
    sent.type = -1;
    sent.inum = -1;
-   sent.buffer = NULL;
    sent.block = -1;
    int succ = sendMessage();
    return succ;
@@ -94,8 +90,6 @@ int MFS_Shutdown() {
   sent.command = SHUTDOWN;
   sent.pinum = -1;
   sent.inum = -1;
-  sent.name = NULL;
-  sent.buffer = NULL;
   sent.type = -1;
   sent.block = -1;
   return 0;

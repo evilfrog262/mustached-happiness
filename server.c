@@ -113,6 +113,8 @@ int main (int argc, char *argv[]) {
 	//message = malloc(sizeof(MFS_Message_t));
 	int rc = UDP_Read(sd, &s, (char *) &message, sizeof(MFS_Message_t));
 	printf("RC in Server: %d\n", rc);
+	printf("name in message: %s\n", message.name);
+	printf("pinum in message: %d\n", message.pinum);
 	if (rc > 0) {
 	    //printf("                                SERVER:: read (message: '%d')\n", message->pinum);
 	    //char reply[BUFFER_SIZE];

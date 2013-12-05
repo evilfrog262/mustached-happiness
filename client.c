@@ -27,7 +27,7 @@ main(int argc, char *argv[])
     //}
 
     MFS_Init("mumble-12.cs.wisc.edu", 10000);
-    MFS_Lookup(0, "k");
+    MFS_Lookup(1, "k");
     return 0;
 }
 

@@ -19,8 +19,8 @@ typedef struct __MFS_Message_t {
   int command;
   int pinum;
   int inum;
-  char *name;
-  char *buffer;
+  char name[60];
+  char buffer[4096]; // may be wrong size
   int block;
   int type;
   int retval;
