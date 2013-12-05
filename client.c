@@ -26,7 +26,7 @@ main(int argc, char *argv[])
 	//printf("CLIENT:: read %d bytes (message: '%s')\n", rc, buffer);
     //}
 
-    MFS_Init("mumble-05.cs.wisc.edu", 10000);
+    MFS_Init("mumble-12.cs.wisc.edu", 10000);
     MFS_Lookup(0, "k");
     return 0;
 }
