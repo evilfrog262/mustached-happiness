@@ -14,6 +14,8 @@
 #define IM_SIZE  (sizeof(MFS_IMPiece_t))
 #define INODE_SIZE (sizeof(MFS_Inode_t))
 
+MFS_Message_t message, reply;
+
 int main (int argc, char *argv[]) {
     if (argc != 3) {
 	printf("Usage: server <port number> <file system image>\n");
@@ -86,7 +88,8 @@ int main (int argc, char *argv[]) {
 	assert(rc >= 0);
 	rc = write(fd, &rootentries, sizeof(MFS_DirEnt_t) * 64);
 	assert(rc >= 0);
-
+ 
+ 	printf("LOOKUP: %d\n", LOOKUP);
 	//MFS_Checkpoint_t* test = malloc(sizeof(MFS_Checkpoint_t));
 	//lseek(fd, 0, SEEK_SET);
 	//rc = read(fd, &test, sizeof(MFS_Checkpoint_t));
@@ -105,13 +108,20 @@ int main (int argc, char *argv[]) {
 
     while (1) {
 	struct sockaddr_in s;
-	char buffer[BUFFER_SIZE];
-	int rc = UDP_Read(sd, &s, buffer, BUFFER_SIZE);
+	//char buffer[BUFFER_SIZE];
+	printf("Mallocing message\n");
+	//message = malloc(sizeof(MFS_Message_t));
+	int rc = UDP_Read(sd, &s, (char *) &message, sizeof(MFS_Message_t));
+	printf("RC in Server: %d\n", rc);
 	if (rc > 0) {
-	    printf("                                SERVER:: read %d bytes (message: '%s')\n", rc, buffer);
-	    char reply[BUFFER_SIZE];
-	    sprintf(reply, "reply");
-	    rc = UDP_Write(sd, &s, reply, BUFFER_SIZE);
+	    //printf("                                SERVER:: read (message: '%d')\n", message->pinum);
+	    //char reply[BUFFER_SIZE];
+	    printf("Mallocing reply\n");
+	    //reply = malloc(sizeof(MFS_Message_t));
+	    //sprintf(reply, "reply");
+	    printf("Returning value\n");
+	    reply.retval = 2;
+	    rc = UDP_Write(sd, &s, (char *) &reply, sizeof(MFS_Message_t));
 	}
     }
 

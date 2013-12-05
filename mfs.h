@@ -15,6 +15,16 @@
 #define UNLINK (6)
 #define SHUTDOWN (7)
 
+typedef struct __MFS_Message_t {
+  int command;
+  int pinum;
+  char *name;
+  char *buffer;
+  int block;
+  int type;
+  int retval;
+} MFS_Message_t;
+
 typedef struct __MFS_Stat_t {
     int type;   // MFS_DIRECTORY or MFS_REGULAR
     int size;   // bytes
