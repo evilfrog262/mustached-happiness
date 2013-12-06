@@ -103,7 +103,7 @@ int sendMessage() {
   FD_ZERO(&r);
   FD_SET(sd, &r);
  
-  t.tv_sec = 5;
+  t.tv_sec = 10;
   t.tv_usec = 0;
 
   printf("CLIENT:: about to send message\n");
