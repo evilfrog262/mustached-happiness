@@ -15,6 +15,12 @@
 #define UNLINK (6)
 #define SHUTDOWN (7)
 
+typedef struct __MFS_Stat_t {
+    int type;   // MFS_DIRECTORY or MFS_REGULAR
+    int size;   // bytes
+    // note: no permissions, access times, etc.
+} MFS_Stat_t;
+
 typedef struct __MFS_Message_t {
   int command;
   int pinum;
@@ -24,13 +30,9 @@ typedef struct __MFS_Message_t {
   int block;
   int type;
   int retval;
+  MFS_Stat_t m;
 } MFS_Message_t;
 
-typedef struct __MFS_Stat_t {
-    int type;   // MFS_DIRECTORY or MFS_REGULAR
-    int size;   // bytes
-    // note: no permissions, access times, etc.
-} MFS_Stat_t;
 
 typedef struct __MFS_DirEnt_t {
     char name[60];  // up to 60 bytes of name in directory (including \0)

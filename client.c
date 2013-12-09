@@ -26,8 +26,13 @@ main(int argc, char *argv[])
 	//printf("CLIENT:: read %d bytes (message: '%s')\n", rc, buffer);
     //}
 
-    MFS_Init("mumble-07.cs.wisc.edu", 10001);
-    MFS_Lookup(0, ".");
+    MFS_Init("mumble-16.cs.wisc.edu", 10003);
+    //MFS_Lookup(0, ".");
+    //MFS_Stat_t* stat = malloc(sizeof(MFS_Stat_t));
+    //MFS_Stat(0, stat);
+    char buffer[4096] = "hi\0";
+    MFS_Write(0, buffer, 0);
+    //printf("size: %d\ntype: %d\n", stat->size, stat->type);
     //MFS_Lookup(2, "j");
     return 0;
 }

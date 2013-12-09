@@ -37,7 +37,24 @@ int MFS_Lookup(int pinum, char *name) {
    return inum;
 }
 
+int MFS_Stat(int inum, MFS_Stat_t* m) {
+   //sent.m = m;
+   MFS_Stat_t stat = *m;
+   sent.m = stat;
+   sent.inum = inum;
+   sent.command = STAT;
+   int success = sendMessage();
+   MFS_Stat_t* temp = malloc(sizeof(MFS_Stat_t));
+   temp = &received.m;
+   *m = *temp;
+   printf("rec temp size: %d\n",m->size);
+   return success;
+}
+
 int MFS_Write(int inum, char *buffer, int block) {
+   if (block < 0 || block > 13) {
+	return -1;
+   }
    sent.command = WRITE;
    sent.inum = inum;
    sprintf(sent.buffer, buffer);
@@ -125,6 +142,7 @@ int sendMessage() {
     }
     if (rc > 0) {
        printf("Received value: %d\n", received.retval);
+       //printf("rec size: %d\n", received.m.size); 
        return received.retval;
     }
     return -1;
