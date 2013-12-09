@@ -5,7 +5,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <assert.h>
-#include <fcntl.h>
+#include <fcntl.h>i
+#include <string.h>
 #include "mfs.h"
 
 #define BUFFER_SIZE (4096)
@@ -18,6 +19,7 @@ MFS_Message_t message, reply;
 MFS_IMPiece_t mapinmem[256];
 MFS_Checkpoint_t* check;
 int fd, rc;
+int nextinodenum = 1;
 
 MFS_Inode_t* getInode(int inum) {
 	// finding next piece of inode map
@@ -108,7 +110,7 @@ int main (int argc, char *argv[]) {
 	for (i = 2; i < 64; i++) {
 	  MFS_DirEnt_t* entry = malloc(sizeof(MFS_DirEnt_t));
 	  entry->inum = -1;
-          sprintf(entry->name, " ");	  
+      sprintf(entry->name, " ");	  
 	  rootentries[i] = *entry;
 	  free(entry);
 	}
@@ -170,45 +172,22 @@ int main (int argc, char *argv[]) {
 	switch(message.command) {
 	    case LOOKUP :
 	    {
-	MFS_Inode_t* inode = getInode(message.pinum);
+	        MFS_Inode_t* inode = getInode(message.pinum);
 		// find matching name in data blocks
-		//int segmentindex = (message.pinum) / 16;
-        //int remainder = (message.pinum) % 16;
-        //printf("seg index : %d\t remainder: %d\n",segmentindex,remainder);
-        //MFS_IMPiece_t mappiece = mapinmem[segmentindex];
-        // find inode
-        //int inodeaddr = mappiece.inptrs[remainder];
-        //lseek(fd, inodeaddr, SEEK_SET);
-        //printf("inodeaddr: %d\n", inodeaddr);
-        //MFS_Inode_t* inode;
-        //rc = read(fd, &inode, sizeof(MFS_Inode_t));
-       // printf("inode type: %d\n",inode->type);
-        //assert(rc >= 0);		
-		int i;
-		//MFS_DirEnt_t dirents[64];
-		//printf("allocating dirent\n");
 		MFS_DirEnt_t* dirent = malloc(sizeof(MFS_DirEnt_t));
 		int found = 0;
 		int foundinode = -1;
+		int i;
 		for (i = 0; i < 14; i++) {
-		   //printf("entered for loop\n");
-		   if (found) { 
-		       //printf("broke out of loop\n");
-		       break; }
+		   if (found) {  break; }
 		   // get array of dir entries in first block
-		   //printf("inode dataptr: %d\n", inode.dataptrs[i]);
 		   if (inode->dataptrs[i] < 0) { continue; }
 		   // look through all entries in first block
-		   //printf("passed break and continue\n");
 		   int j;
 		   lseek(fd, inode->dataptrs[i], SEEK_SET);
 		   for (j = 0; j < 64; j++) {
-			//printf("dirents: %s\n", dirents[j].name);
-			//printf("message: %s\n", message.name);
-			//printf("about to read dirent\n");
 			rc = read(fd, dirent, sizeof(MFS_DirEnt_t));
 			assert(rc >= 0);
-			//printf("dir ent: %s\n", dirent->name);
 			if (strcmp(dirent->name, message.name) == 0) {
 			    found = 1;
 			    foundinode = dirent->inum;
@@ -217,15 +196,7 @@ int main (int argc, char *argv[]) {
 			}
 		        lseek(fd, sizeof(MFS_DirEnt_t), SEEK_CUR);
 		   }
-			
-			
-		//	if ( strcmp(dirents[j].name, message.name) == 0 ) {
-		//	    found = 1;
-		//	    foundinode = dirents[j].inum;
-		//	    break;
-		//	}
-		//   }
-		}
+		}	
 		reply.retval = foundinode;
 		printf("got a lookup command\n");
 	        break;
@@ -275,8 +246,94 @@ int main (int argc, char *argv[]) {
 
 	        break;
 	    case CREAT :
-	        
+	    { 
+		int datablock, dirnumber, i , j;
+		int found = 0;
+		if (strlen(message.name) > 60) {
+		   reply.retval = -1;
+		} 
+		else {
+		    MFS_Inode_t* dir = getInode(message.pinum);
+		    MFS_DirEnt_t* dirent = malloc(sizeof(MFS_DirEnt_t));
+		    // look for next empty space in data block
+		    for (j = 0; j < 14; j++) {
+		       if (found) { break; }		   
+		       if (dir->dataptrs[j] < 0) {
+			    datablock = j;
+			    dirnumber = 0;
+			    found = 1;
+			    break;
+		       }
+		       for (i = 0; i < 64; i++) {
+		            rc = read(fd, dirent, sizeof(MFS_DirEnt_t));
+			    assert(rc >= 0);
+			    if (dirent->inum == -1) {
+		               datablock = j;
+			       dirnumber = i;
+			       found = 1;
+			       break;
+		         }
+		       }
+	    	     }  
+		     // make new directory entry
+		     MFS_DirEnt_t* newentry = malloc(sizeof(MFS_DirEnt_t));
+		     strcpy(newentry->name, message.name);
+		     newentry->inum = nextinodenum;
+		     // write to file in next blank space in data block
+		     if (dirnumber == 0) {
+			// new data block allocated
+			MFS_DirEnt_t rootentries[64];
+			for (i = 1; i < 64; i++) {
+		          MFS_DirEnt_t* entry = malloc(sizeof(MFS_DirEnt_t));
+		          entry->inum = -1;
+		          sprintf(entry->name, " ");
+		          rootentries[i] = *entry;
+	                  free(entry);
+	                }
+			// write new block to end of log
+			lseek(fd, check->endoflog, SEEK_SET);
+		        rc = write(fd, &rootentries, sizeof(MFS_DirEnt_t) * 64);
+		        assert(rc >= 0);
+			// make inode point to new block
+			dir->dataptrs[datablock] = check->endoflog;
+			// update end of log
+			check->endoflog += sizeof(MFS_DirEnt_t) * 64;
+
+		     }
+		     else {
+			// write in existing block
+			int addr = dir->dataptrs[datablock];
+			addr = addr + (dirnumber * sizeof(MFS_DirEnt_t));
+			lseek(fd, addr, SEEK_SET);
+			rc = write(fd, &newentry, sizeof(MFS_DirEnt_t));
+			assert(rc >= 0);
+		     }
+		     // add new inode to the file
+		     MFS_Inode_t* newinode = malloc(sizeof(MFS_Inode_t));
+		     newinode->type = message.type;
+		     newinode->size = 0; // empty file to start
+		     int dataptrs[14];
+		     int i;
+		     for (i = 0; i < 14; i++) {
+		     	dataptrs[i] = -1;
+		     }
+		     newinode->dataptrs = dataptrs;
+		     lseek(fd, check->endoflog, SEEK_SET);
+		     rc = write(fd, &newinode, sizeof(MFS_Inode_t));
+		     assert(rc >= 0);
+		     // update end of log
+		     check->endoflog += sizeof(MFS_Inode_t);
+		     // make inode map point to new inode
+		     //
+		}
+		//update checkpoint region
+		lseek(fd, 0, SEEK_SET);
+		rc = write(fd, &check, sizeof(MFS_Checkpoint_t));
+		assert(rc >= 0);
+		// update inode numbers
+		nextinodenum++;
 		break;
+	    }
 	    case UNLINK :
 
 	        break;
@@ -289,14 +346,6 @@ int main (int argc, char *argv[]) {
 
 	}
 	
-	//printf("name in message: %s\n", message.name);
-	//printf("pinum in message: %d\n", message.pinum);
-	    //printf("                                SERVER:: read (message: '%d')\n", message->pinum);
-	    //char reply[BUFFER_SIZE];
-	    //printf("Mallocing reply\n");
-	    //reply = malloc(sizeof(MFS_Message_t));
-	    //sprintf(reply, "reply");
-	//printf("Returning value: %d\n", reply.retval);
 	rc = UDP_Write(sd, &s,(char *) &reply, sizeof(MFS_Message_t));
 	assert(rc >= 0);
     }
