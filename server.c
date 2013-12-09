@@ -153,6 +153,9 @@ int main (int argc, char *argv[]) {
 	   assert(rc >= 0);
 	}
     }
+ 
+    // sync created file system to disk
+    fsync(fd);
 
     int sd = UDP_Open(port);
     assert(sd > -1);
@@ -233,7 +236,7 @@ int main (int argc, char *argv[]) {
 		    lseek(fd, 0, SEEK_SET);
 		    rc = write(fd, &check, sizeof(MFS_Checkpoint_t));
 		    assert(rc >= 0);
-		    // write updated inode to file
+		    //size write updated inode to file
 		    int addr = getInodeAddr(message.inum);
 		    lseek(fd, addr, SEEK_SET);
 		    rc = write(fd, &inode, sizeof(MFS_Inode_t));
