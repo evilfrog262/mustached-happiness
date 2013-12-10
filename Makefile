@@ -5,10 +5,10 @@ all: server client lib
 
 # this generates the target executables
 server: server.o udp.o
-	$(CC) -o server server.o udp.o 
+	$(CC) -o  server -g server.o udp.o 
 
 client: client.o udp.o mfs.o
-	$(CC) -o client client.o udp.o mfs.o 
+	$(CC) -o client -g client.o udp.o mfs.o 
 
 lib:    mfs.o udp.o
 	$(CC) -Wall -Werror -shared -fpic -g -o libmfs.so mfs.c udp.c

@@ -52,9 +52,6 @@ int MFS_Stat(int inum, MFS_Stat_t* m) {
 }
 
 int MFS_Write(int inum, char *buffer, int block) {
-   if (block < 0 || block > 13) {
-	return -1;
-   }
    sent.command = WRITE;
    sent.inum = inum;
    sprintf(sent.buffer, buffer);
@@ -62,6 +59,7 @@ int MFS_Write(int inum, char *buffer, int block) {
    // set unused values to -1
    sent.type = -1;
    sent.pinum = -1;
+   printf("WRITING FILE\n");
    int succ = sendMessage();
    return succ;
 }
@@ -69,13 +67,14 @@ int MFS_Write(int inum, char *buffer, int block) {
 int MFS_Read(int inum, char *buffer, int  block) {
    sent.command = READ;
    sent.inum = inum;
-   sprintf(sent.buffer, buffer);
    sent.block = block;
    // set unused values to -1
    //sent.name = NULL;
    sent.type = -1;
    sent.pinum = -1;
    int succ = sendMessage();
+   printf("received in mfs: %s\n", received.buffer);
+   *buffer = received.buffer[0];
    return succ;
 }
 
@@ -87,6 +86,7 @@ int MFS_Creat(int pinum, int type, char *name) {
    // set unused values to -1
    sent.inum = -1;
    sent.block = -1;
+   printf("CREATING FILE\n");
    int succ = sendMessage();
    return succ;
 }
@@ -109,7 +109,7 @@ int MFS_Shutdown() {
   sent.inum = -1;
   sent.type = -1;
   sent.block = -1;
-  return 0;
+  exit(0);
 }
 
 int sendMessage() {
@@ -120,7 +120,7 @@ int sendMessage() {
   FD_ZERO(&r);
   FD_SET(sd, &r);
  
-  t.tv_sec = 10;
+  t.tv_sec = 5;
   t.tv_usec = 0;
 
   printf("CLIENT:: about to send message\n");
@@ -129,7 +129,7 @@ int sendMessage() {
   
   int sc = select(sd + 1, &r, NULL, NULL, &t);
   if (sc == 0) {
-     printf("Reqeust timed out\n");
+     printf("Request timed out\n");
      return -1;
   } else if (sc == -1) {
      printf("Error with request\n");
