@@ -31,7 +31,7 @@ main(int argc, char *argv[])
     //MFS_Stat_t* stat = malloc(sizeof(MFS_Stat_t));
     //MFS_Stat(0, stat);
     MFS_Creat(0, MFS_REGULAR_FILE, "myfile");
-    //MFS_Lookup(0, "myfile");
+    MFS_Lookup(0, "myfile");
     //MFS_Creat(0, MFS_DIRECTORY, "mydir");
     //MFS_Lookup(0, "mydir");
     char* buffer = "hi";
@@ -41,8 +41,9 @@ main(int argc, char *argv[])
     char* readbuff = malloc(4096);
     MFS_Read(1, readbuff, 0);
     printf("Read: %s\n", readbuff);
-    //printf("size: %d\ntype: %d\n", stat->size, stat->type);
-    //MFS_Lookup(2, "j");
+    if (strcmp(readbuff, buffer) == 0) {
+	printf("EQUAL\n");
+    }
     return 0;
 }
 

@@ -10,6 +10,8 @@ int sd;
 fd_set r;
 struct timeval t;
 
+char testRead[4096], testWrite[4096];
+
 int sendMessage();
 
 int MFS_Init(char *hostname, int port) {
@@ -54,11 +56,14 @@ int MFS_Stat(int inum, MFS_Stat_t* m) {
 int MFS_Write(int inum, char *buffer, int block) {
    sent.command = WRITE;
    sent.inum = inum;
-   sprintf(sent.buffer, buffer);
+   //sprintf(sent.buffer, buffer); // XXX please use memcpy
+   memcpy(sent.buffer, buffer, 4096);
    sent.block = block;
    // set unused values to -1
    sent.type = -1;
    sent.pinum = -1;
+
+   memcpy(testWrite, buffer, 4096); // testWrite = buffer; // memcpy
    printf("WRITING FILE\n");
    int succ = sendMessage();
    return succ;
@@ -74,7 +79,7 @@ int MFS_Read(int inum, char *buffer, int  block) {
    sent.pinum = -1;
    int succ = sendMessage();
    printf("received in mfs: %s\n", received.buffer);
-   *buffer = received.buffer[0];
+   memcpy(buffer, received.buffer, 4096);
    return succ;
 }
 
@@ -109,7 +114,9 @@ int MFS_Shutdown() {
   sent.inum = -1;
   sent.type = -1;
   sent.block = -1;
-  exit(0);
+  sendMessage();
+  //exit(0);
+  return 0;
 }
 
 int sendMessage() {
@@ -123,9 +130,9 @@ int sendMessage() {
   t.tv_sec = 5;
   t.tv_usec = 0;
 
-  printf("CLIENT:: about to send message\n");
+  //printf("CLIENT:: about to send message\n");
   rc = UDP_Write(sd, &saddr, (char *) &sent, sizeof(MFS_Message_t));
-  printf("CLIENT:: sent message (%d)\n", rc);
+  //printf("CLIENT:: sent message (%d)\n", rc);
   
   int sc = select(sd + 1, &r, NULL, NULL, &t);
   if (sc == 0) {
@@ -137,7 +144,7 @@ int sendMessage() {
   } else {
     if (rc > 0) {
        struct sockaddr_in raddr;
-       printf("CLIENT:: reading message\n");
+       //printf("CLIENT:: reading message\n");
        rc = UDP_Read(sd, &raddr, (char *) &received, sizeof(MFS_Message_t));
     }
     if (rc > 0) {
