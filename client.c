@@ -60,7 +60,7 @@ main(int argc, char *argv[])
     }	
     MFS_Shutdown();*/
 
-    printf("EMPTY TEST\n");
+    /*printf("EMPTY TEST\n");
     MFS_Creat(0, MFS_DIRECTORY, "testdir");
     inum = MFS_Lookup(0, "testdir");
     printf("Testdir: %d\n", inum);
@@ -70,6 +70,23 @@ main(int argc, char *argv[])
     int r = MFS_Unlink(0, "testdir");
     if (r != -1) {
 	printf("FAILURE!\n");
+    }
+    MFS_Shutdown();*/
+
+    printf("BIGDIR\n");
+    MFS_Creat(0, MFS_DIRECTORY, "testdir");
+    inum = MFS_Lookup(0, "testdir");
+    assert(inum == 1);
+    int i;
+    char* str;
+    for (i = 0; i < 25; i++) {
+	sprintf(str, "%d", i);
+	MFS_Creat(0, MFS_REGULAR_FILE, str);
+    }	
+    for (i = 0; i < 25; i++) {
+        sprintf(str, "%d", i);
+	int k = MFS_Lookup(0, str);
+	assert(k != -1);
     }
     MFS_Shutdown();
 
