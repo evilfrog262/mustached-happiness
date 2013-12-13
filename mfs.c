@@ -34,7 +34,7 @@ int MFS_Lookup(int pinum, char *name) {
    sent.block = -1;
    sent.type = -1;
    sent.inum = -1;
-   printf("name in MFS: %s\n", sent.name);
+   //printf("name in MFS: %s\n", sent.name);
    int inum = sendMessage();
    return inum;
 }
@@ -49,7 +49,7 @@ int MFS_Stat(int inum, MFS_Stat_t* m) {
    MFS_Stat_t* temp = malloc(sizeof(MFS_Stat_t));
    temp = &received.m;
    *m = *temp;
-   printf("rec temp size: %d\n",m->size);
+   //printf("rec temp size: %d\n",m->size);
    return success;
 }
 
@@ -64,7 +64,7 @@ int MFS_Write(int inum, char *buffer, int block) {
    sent.pinum = -1;
 
    memcpy(testWrite, buffer, 4096); // testWrite = buffer; // memcpy
-   printf("WRITING FILE\n");
+   //printf("WRITING FILE\n");
    int succ = sendMessage();
    return succ;
 }
@@ -78,7 +78,7 @@ int MFS_Read(int inum, char *buffer, int  block) {
    sent.type = -1;
    sent.pinum = -1;
    int succ = sendMessage();
-   printf("received in mfs: %s\n", received.buffer);
+   //printf("received in mfs: %s\n", received.buffer);
    memcpy(buffer, received.buffer, 4096);
    return succ;
 }
@@ -91,7 +91,7 @@ int MFS_Creat(int pinum, int type, char *name) {
    // set unused values to -1
    sent.inum = -1;
    sent.block = -1;
-   printf("CREATING FILE\n");
+   //printf("CREATING FILE\n");
    int succ = sendMessage();
    return succ;
 }
@@ -137,10 +137,10 @@ int sendMessage() {
   
   int sc = select(sd + 1, &r, NULL, NULL, &t);
   if (sc == 0) {
-     printf("Request timed out\n");
+     //printf("Request timed out\n");
      return -1;
   } else if (sc == -1) {
-     printf("Error with request\n");
+     //printf("Error with request\n");
      return -1;
   } else {
     if (rc > 0) {
@@ -149,7 +149,7 @@ int sendMessage() {
        rc = UDP_Read(sd, &raddr, (char *) &received, sizeof(MFS_Message_t));
     }
     if (rc > 0) {
-       printf("Received value: %d\n", received.retval);
+       //printf("Received value: %d\n", received.retval);
        //printf("rec size: %d\n", received.m.size); 
        return received.retval;
     }

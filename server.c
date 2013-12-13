@@ -87,11 +87,11 @@ int main (int argc, char *argv[]) {
     int port = atoi(argv[1]);
     char* fsimage = argv[2];
 
-    printf("port: %d\n", port);
+    //printf("port: %d\n", port);
     // open file system image if it exists
     fd = open(fsimage, O_RDWR | O_CREAT, S_IRWXU);
     if (fd < 0) {
-	printf("Error: could not open file\n");
+	//printf("Error: could not open file\n");
 	exit(-1);
     }
     struct stat buf;
@@ -101,7 +101,7 @@ int main (int argc, char *argv[]) {
     int filesize = buf.st_size;
     // newly created file
     if (filesize == 0) {
-    	printf("Created a new file\n");
+    	//printf("Created a new file\n");
 
 	// initialize inode map and checkpoint region
 	check = malloc(sizeof(MFS_Checkpoint_t));
@@ -203,7 +203,7 @@ int main (int argc, char *argv[]) {
 	struct sockaddr_in s;
 	rc = UDP_Read(sd, &s, (char *) &message, sizeof(MFS_Message_t));
         assert(rc >= 0);
-	printf("RC in Server: %d\n", rc);
+	//printf("RC in Server: %d\n", rc);
 	
 	switch(message.command) {
 	    case LOOKUP :
@@ -243,7 +243,8 @@ int main (int argc, char *argv[]) {
 		       }
 		    }
 		    if (foundinode == -1) {
-			printf("lookup failed\n");
+				;
+			//printf("lookup failed\n");
 		    }
 		    reply.retval = foundinode;
 		}		
@@ -271,7 +272,7 @@ int main (int argc, char *argv[]) {
 		MFS_Inode_t* inode = getInode(message.inum);
 		if (inode == NULL || inode->type == 0) {
 		    // cannot write to directories
-		    printf("Can't write to a directory!\n");
+		    //printf("Can't write to a directory!\n");
 		    reply.retval = -1;
 		} 
 		else if (message.block < 0 || message.block > 13) {
@@ -279,7 +280,7 @@ int main (int argc, char *argv[]) {
 		   reply.retval = -1;
 		}
 		else {
-		    printf("BEGINNING WRITE\n");
+		    //printf("BEGINNING WRITE\n");
 		    // check if size needs to be updated
 		    int i;
 		    int updatedsize = 0;
@@ -316,7 +317,7 @@ int main (int argc, char *argv[]) {
 		    lseek(fd, check->endoflog, SEEK_SET);
 		    rc = write(fd, &inode, sizeof(MFS_Inode_t));
 		    assert(rc >= 0);
-		    printf("ADDED INODE: %d\n", check->endoflog);
+		    //printf("ADDED INODE: %d\n", check->endoflog);
 
 		    // update inode map
 		    int segment = message.inum / 16;
@@ -369,7 +370,7 @@ int main (int argc, char *argv[]) {
 			rc = read(fd, &reply.buffer, sizeof(reply.buffer));
 			assert(rc >= 0);
 		    }
-		    printf("put in server: %s\n", reply.buffer);
+		    //printf("put in server: %s\n", reply.buffer);
 		    reply.retval = 0;
 		}
 	        break;
@@ -387,7 +388,7 @@ int main (int argc, char *argv[]) {
 		   reply.retval = -1;
 		} 
 		else {
-		     printf("CREATING FILE\n");
+		     //printf("CREATING FILE\n");
 		     // find next empty space in inodemap and save num 
 		     MFS_IMPiece_t* mappiece = malloc(sizeof(MFS_IMPiece_t));
 		     // find first piece of inode map with space for new inode
@@ -411,7 +412,7 @@ int main (int argc, char *argv[]) {
 			    break;
 			}
 		     }
-		     printf("INUM: %d\n", newinum);
+		     //printf("INUM: %d\n", newinum);
 		     // make new directory entry in parent directory
 		     //MFS_Inode_t* dir = getInode(message.pinum);
 		     //MFS_DirEnt_t dirent;// = malloc(sizeof(MFS_DirEnt_t));
@@ -467,7 +468,7 @@ int main (int argc, char *argv[]) {
 		     strcpy(newentry.name, message.name);
 		     newentry.inum = newinum; // use inode number determined above
 		     //printf("DIRNUMBER: %d\n", dirnumber);
-		     int nextblock = 0;
+		     int nextblock = -1;
 		     if (!found) {
 			int g;
 			for (g = 0; g < 14; g++) {
@@ -477,7 +478,12 @@ int main (int argc, char *argv[]) {
 				break;
 			    }
 			}
-		   
+		   }
+		   if (!found) {
+			reply.retval = -1;
+			break;
+		   }
+		   if (nextblock != -1) {
 			// new data block allocated
 			MFS_DirEnt_t rootentries[64];
 			rootentries[0] = newentry;
@@ -638,7 +644,7 @@ int main (int argc, char *argv[]) {
 			    // when one is found matching name, keep track of location
 			    currdir = entries[j];
 			    if (strcmp(currdir.name, message.name) == 0) {
-				printf("unlink file: %s\n", currdir.name);
+				//printf("unlink file: %s\n", currdir.name);
 				datablock = i;
 				dirnumber = j;
 				found = 1;
@@ -647,12 +653,12 @@ int main (int argc, char *argv[]) {
 			}
 		    }
 		    if (found == 0) {
-		    	printf("file doesn't exist\n");
+		    	//printf("file doesn't exist\n");
 			// dir or file doesn't exist, return success
 			reply.retval = 0;
 		    } 
 		    else {
-		    	printf("beginning file removal\n");
+		    	//printf("beginning file removal\n");
 			// lookup inode number in dirent
 			MFS_Inode_t* inode = getInode(currdir.inum);
 			//printf("type: %d\n", inode->type);
@@ -726,11 +732,11 @@ int main (int argc, char *argv[]) {
 	        break;
 	    }
 	    default:
-		printf("invalid command\n");
+		//printf("invalid command\n");
 		exit(-1);
 
 	}
-	printf("writing to client\n");	
+	//printf("writing to client\n");	
 	rc = UDP_Write(sd, &s,(char *) &reply, sizeof(MFS_Message_t));
 	assert(rc >= 0);
     }
