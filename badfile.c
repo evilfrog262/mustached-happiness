@@ -115,7 +115,7 @@ int main (int argc, char *argv[]) {
 
 	MFS_IMPiece_t* imap = malloc(sizeof(MFS_IMPiece_t));
 	imap->inptrs[0] = CHECK_SIZE + (IM_SIZE * 256);
-	//printf("first inode: %d\n", imap->inptrs[0]);
+	printf("first inode: %d\n", imap->inptrs[0]);
 	for (i = 1; i < 16; i++) {
 	    imap->inptrs[i] = -1;
 	}
@@ -150,7 +150,7 @@ int main (int argc, char *argv[]) {
 	// write struct to file
 	rc = write(fd, &check, sizeof(MFS_Checkpoint_t));
         assert(rc >= 0);
-	//printf("first inode before write: %d\n", imap->inptrs[0]);
+	printf("first inode before write: %d\n", imap->inptrs[0]);
 	rc = write(fd, &imap, sizeof(MFS_IMPiece_t));
 	mapinmem[0] = *imap;
 	assert(rc >= 0);
@@ -268,6 +268,7 @@ int main (int argc, char *argv[]) {
 		else if (message.block < 0 || message.block > 13) {
 		   // not a valid block number
 		   reply.retval = -1;
+		   printf("BAAD BLOCK\n");
 		}
 		else {
 		    printf("BEGINNING WRITE\n");
@@ -369,12 +370,7 @@ int main (int argc, char *argv[]) {
 	    { 
 		int datablock, dirnumber, i , j;
 		int found = 0;
-		MFS_Inode_t* dir = getInode(message.pinum);
-		if (dir->type == MFS_REGULAR_FILE) {
-		    // can't write to non-directory
-		    reply.retval = -1;
-		}
-		else if (strlen(message.name) >= 60) {
+		if (strlen(message.name) >= 60) {
 		   reply.retval = -1;
 		} 
 		else {
@@ -384,7 +380,6 @@ int main (int argc, char *argv[]) {
 		     // find first piece of inode map with space for new inode
 		     //*mappiece = mapinmem[firstemptymap];
 		     int foundspace = 0;
-		     int inptr;
 		     int newinum = -1;
 		     // look at all pieces in the inode map
 		     for (i = 0; i < 256; i++) {
@@ -392,10 +387,8 @@ int main (int argc, char *argv[]) {
 			*mappiece = mapinmem[i];
 			for (j = 0; j < 16; j++) {
 			    // use first empty space in first map
-			    printf("inptr: %d\n", mappiece->inptrs[j]);
 			    if (mappiece->inptrs[j] != -1) { continue; }
-			    //mappiece->inptrs[j] = (check->endoflog);
-			    inptr = j;
+			    mappiece->inptrs[j] = (check->endoflog);
 			    foundspace = 1;
 			    newinum = (16 * i) + j;
 			    break;
@@ -403,7 +396,7 @@ int main (int argc, char *argv[]) {
 		     }
 		     printf("INUM: %d\n", newinum);
 		     // make new directory entry in parent directory
-		     //MFS_Inode_t* dir = getInode(message.pinum);
+		     MFS_Inode_t* dir = getInode(message.pinum);
 		     MFS_DirEnt_t* dirent = malloc(sizeof(MFS_DirEnt_t));
 		     // look for next empty space in data block
 		     for (j = 0; j < 14; j++) {
@@ -446,20 +439,44 @@ int main (int argc, char *argv[]) {
 			lseek(fd, check->endoflog, SEEK_SET);
 		        rc = write(fd, &rootentries, sizeof(MFS_DirEnt_t) * 64);
 		        assert(rc >= 0);
-			// make inode point to new block
-			dir->dataptrs[datablock] = check->endoflog;
-			// update end of log
-			check->endoflog += sizeof(MFS_DirEnt_t) * 64;
-
 		     }
 		     else {
 			// write in existing block
 			int addr = dir->dataptrs[datablock];
-			addr = addr + (dirnumber * sizeof(MFS_DirEnt_t));
+			//addr = addr + (dirnumber * sizeof(MFS_DirEnt_t));
+			//lseek(fd, addr, SEEK_SET);
+			//rc = write(fd, &newentry, sizeof(MFS_DirEnt_t));
+			//assert(rc >= 0);
+		        MFS_DirEnt_t alldirs[64];
 			lseek(fd, addr, SEEK_SET);
-			rc = write(fd, &newentry, sizeof(MFS_DirEnt_t));
+			rc = read(fd, &alldirs, sizeof(MFS_DirEnt_t) * 64);
 			assert(rc >= 0);
+			alldirs[dirnumber] = newentry;
+			lseek(fd, check->endoflog, SEEK_SET);
+			rc = write(fd, &alldirs, sizeof(MFS_DirEnt_t) * 64);
+			assert(rc >=0);
 		     }
+
+		     // update parent inode to point to new data block
+		     dir->dataptrs[datablock] = check->endoflog;
+		     check->endoflog += sizeof(MFS_DirEnt_t) * 64;
+		     // write updated parent to log
+		     lseek(fd, check->endoflog, SEEK_SET);
+		     rc = write(fd, &dir, sizeof(MFS_Inode_t));
+		     assert(rc >= 0);
+		     int segment = message.inum / 16;
+		     MFS_IMPiece_t mappiece2 = mapinmem[segment];
+		     int remainder = message.inum % 16;
+		     mappiece2.inptrs[remainder] = check->endoflog;
+		     check->endoflog += sizeof(MFS_Inode_t);
+		     // update inode map in memory and file
+		     mapinmem[segment] = mappiece2;
+		     lseek(fd, check->endoflog, SEEK_SET);
+		     rc = write(fd, &mappiece2, sizeof(MFS_IMPiece_t));
+		     assert(rc >= 0);
+		     // update checkpoint region
+		     check->inodemapptrs[segment] = check->endoflog;
+		     check->endoflog += sizeof(MFS_IMPiece_t);
 		 
 		     // new inode to add
                      MFS_Inode_t* newinode = malloc(sizeof(MFS_Inode_t));
@@ -472,7 +489,7 @@ int main (int argc, char *argv[]) {
                          MFS_DirEnt_t dot, dotdot;
                          strcpy(dot.name, ".");
                          strcpy(dotdot.name, "..");
-                         dot.inum = nextinodenum; // same as this dir
+                         dot.inum = newinum; // same as this dir
                          dotdot.inum = message.pinum; // parent dir
                          newdirents[0] = dot;
                          newdirents[1] = dotdot;
@@ -486,11 +503,11 @@ int main (int argc, char *argv[]) {
                          lseek(fd, check->endoflog, SEEK_SET);
                          rc = write(fd, &newdirents, sizeof(MFS_DirEnt_t) * 64);
                          assert(rc >= 0);
-                         check->endoflog += sizeof(MFS_DirEnt_t) * 64;
+			 check->endoflog += (sizeof(MFS_DirEnt_t) * 64);
                      }
-                     // add new inode to the file
-                     if (newinode->type == MFS_DIRECTORY) {
-                 	newinode->dataptrs[0] = check->endoflog - (sizeof(MFS_DirEnt_t) * 64);
+		     if (newinode->type == MFS_DIRECTORY) {   // add new inode to the file
+                 	newinode->dataptrs[0] = check->endoflog - (sizeof(MFS_DirEnt_t) * 64); 
+			//check->endoflog += (sizeof(MFS_DirEnt_t) * 64);
                  	newinode->size = 2 * sizeof(MFS_DirEnt_t);
                  	int i;
                  	for (i = 1; i < 14; i++) {
@@ -510,8 +527,7 @@ int main (int argc, char *argv[]) {
                      check->endoflog += sizeof(MFS_Inode_t);
 		 
 		     // update map in memory
-		     int segment = newinum / 16;
-		     mappiece->inptrs[inptr] = check->endoflog - sizeof(MFS_Inode_t);
+		     segment = newinum / 16;
 		     mapinmem[segment] = *mappiece;
 		     // write new map piece to file
 		     lseek(fd, check->endoflog, SEEK_SET);
@@ -540,107 +556,7 @@ int main (int argc, char *argv[]) {
 		break;
 	    }
 	    case UNLINK:
-	    {
-	        MFS_Inode_t* pinode  = getInode(message.pinum);
-		if (pinode->type == MFS_DIRECTORY && pinode->size <= 128) {
-		    reply.retval = -1;
-		}
-		else {
-		    printf("looking for file to unlink\n");
-		    // lookup name in pinode
-		    int datablock, dirnumber;
-		    int i, j;
-		    int found = 0;
-		    MFS_DirEnt_t entries[64];
-		    MFS_DirEnt_t currdir;
-		    // look through all dirents of the pinode
-		    for (i = 0; i < 14; i++) {
-		    	if (found) { break; }
-			if (pinode->dataptrs[i] == -1) { continue; }
-			lseek(fd, pinode->dataptrs[i], SEEK_SET);
-			rc = read(fd, &entries, sizeof(entries));
-			assert(rc >= 0);
-			for (j = 0; j < 64; j++) {
-			    // when one is found matching name, keep track of location
-			    currdir = entries[j];
-			    if (strcmp(currdir.name, message.name) == 0) {
-				datablock = i;
-				dirnumber = j;
-				found = 1;
-				break;
-			    }
-			}
-		    }
-		    if (found == 0) {
-		    	printf("file doesn't exist\n");
-			// dir or file doesn't exist, return success
-			reply.retval = 0;
-		    } 
-		    else {
-		    	printf("beginning file removal\n");
-			// lookup inode number in dirent
-			MFS_Inode_t* inode = getInode(currdir.inum);
-			//printf("type: %d\n", inode->type);
-			//printf("got inode\n");
-			// if it is of type dir make sure it is empty
-			if (inode->type == MFS_DIRECTORY && inode->size > 128) {
-			    printf("directory size: %d\n", inode->size);
-			    reply.retval = -1;
-			}
-			else {
-			    printf("reading in parent dir data block\n");
-			    // read in corresponding data block    
-			    MFS_DirEnt_t readdatablock[64];
-			    lseek(fd, pinode->dataptrs[datablock], SEEK_SET);
-			    //lseek(fd, dirnumber * sizeof(MFS_DirEnt_t), SEEK_CUR);
-			    rc = read(fd, &readdatablock, sizeof(MFS_DirEnt_t) * 64);
-			    assert(rc >= 0);
-			    printf("overwriting entry\n");
-			    // overwrite dirent with empty dirent
-			    MFS_DirEnt_t emptydirent;
-			    emptydirent.inum = -1;
-			    sprintf(emptydirent.name, " ");
-			    readdatablock[dirnumber] = emptydirent;
-			    printf("writing updated block to file\n");
-			    //write block to end of file
-			    lseek(fd, check->endoflog, SEEK_SET);
-			    rc = write(fd, &readdatablock, sizeof(readdatablock));
-			    assert(rc >= 0);
-			    printf("updating parent inode\n");
-			    // update pinode to point to new block
-			    pinode->dataptrs[datablock] = check->endoflog;
-			    check->endoflog += sizeof(readdatablock);
-			    // write pinode to end of file
-			    lseek(fd, check->endoflog, SEEK_SET);
-			    rc = write(fd, &pinode, sizeof(pinode));
-			    assert(rc >= 0);
-			    printf("updating imap\n");
-			    // update inode map to point to new pinode
-			    int segment = message.pinum / 16;
-			    MFS_IMPiece_t mappiece = mapinmem[segment];
-			    int remainder = message.pinum % 16;
-			    mappiece.inptrs[remainder] = check->endoflog;
-			    check->endoflog += sizeof(pinode);
-			    // write inode map to end of file and memory
-			    mapinmem[segment] = mappiece;
-			    lseek(fd, check->endoflog, SEEK_SET);
-			    rc = write(fd, &mappiece, sizeof(mappiece));
-			    assert(rc >= 0);
-			    printf("updating checkpoint\n");
-			    // update checkpoint region
-			    check->inodemapptrs[segment] = check->endoflog;
-			    check->endoflog += sizeof(mappiece);
-			    // overwrite checkpoint region
-			    lseek(fd, 0, SEEK_SET);
-			    rc = write(fd, &check, sizeof(check));
-			    assert(rc >= 0);
-			    reply.retval = 1;
-			}
-		    }
-		}
-	        fsync(fd);
-		break;
-	    }
+	        break;
 	    case SHUTDOWN:
 	    {
 	     	fsync(fd);
@@ -660,6 +576,5 @@ int main (int argc, char *argv[]) {
 
     return 0;
 }
-
 
 

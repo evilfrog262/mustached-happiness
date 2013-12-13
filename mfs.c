@@ -18,8 +18,8 @@ int MFS_Init(char *hostname, int port) {
    host = hostname;
    portnum = port;
 
-   sd = UDP_Open(-1);
-   assert(sd > -1);
+   sd = UDP_Open(0);
+   //assert(sd > -1);
   
    //int rc = UDP_FillSockAddr(&saddr, host, portnum);
    //assert(rc == 0);
@@ -116,6 +116,7 @@ int MFS_Shutdown() {
   sent.block = -1;
   sendMessage();
   //exit(0);
+  UDP_Close(sd);
   return 0;
 }
 
