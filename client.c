@@ -9,7 +9,7 @@ int
 main(int argc, char *argv[])
 {
     int inum; 
-    MFS_Init("mumble-35.cs.wisc.edu", 10333);
+    MFS_Init("mumble-19.cs.wisc.edu", 10333);
 
     /*printf("CREAT\n");
     MFS_Creat(0, MFS_REGULAR_FILE, "test");
@@ -40,7 +40,7 @@ main(int argc, char *argv[])
     if (MFS_Lookup(inum, "..") != 0) {
 	printf("'..' should point to root!\n");
     }
-    MFS_Shutdown();*/
+    MFS_Shutdown(); */
 
     /*printf("BADDIR\n");
     MFS_Creat(0, MFS_REGULAR_FILE, "testdir");
@@ -60,29 +60,33 @@ main(int argc, char *argv[])
     }	
     MFS_Shutdown();*/
 
-    /*printf("EMPTY TEST\n");
-    MFS_Creat(0, MFS_REGULAR_FILE, "testdir");
+    printf("EMPTY TEST\n");
+    MFS_Creat(0, MFS_DIRECTORY, "testdir");
     inum = MFS_Lookup(0, "testdir");
-    MFS_Creat(0, MFS_REGULAR_FILE, "testfile");
-    MFS_Lookup(inum, "testfile");
+    printf("Testdir: %d\n", inum);
+    MFS_Creat(inum, MFS_REGULAR_FILE, "testfile");
+    inum = MFS_Lookup(inum, "testfile");
+    printf("Testfile: %d\n", inum);
     int r = MFS_Unlink(0, "testdir");
     if (r != -1) {
-	printf("unlink should fail on non-empty dir\n");
+	printf("FAILURE!\n");
     }
-    MFS_Shutdown();*/
+    MFS_Shutdown();
 
-    printf("NAME TEST\n");
+    /*printf("NAME TEST\n");
     char* toolong = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
     int r = MFS_Creat(0, MFS_REGULAR_FILE, toolong);
     if (r != -1) {
 	printf("name argument too long should result in failute\n");
-    }
+    }*/
 
     /*printf("UNLINK 1\n");
     MFS_Creat(0, MFS_REGULAR_FILE, "test");
     inum = MFS_Lookup(0, "test");
+    printf("inum: %d\n", inum);
     MFS_Unlink(0, "test");
     inum = MFS_Lookup(0, "test");
+    printf("inum: %d\n", inum);
     if (inum != -1) {
 	printf("Lookup should fail\n");
     }
@@ -98,7 +102,7 @@ main(int argc, char *argv[])
     }
     MFS_Shutdown();*/
 
-    MFS_Shutdown();
+    //MFS_Shutdown();
 
 
     //MFS_Init("mumble-35.cs.wisc.edu", 10333);

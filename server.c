@@ -214,19 +214,20 @@ int main (int argc, char *argv[]) {
 		    int foundinode = -1;
 		    int i;
 		    for (i = 0; i < 14; i++) {
-		       if (found) {  break; }
+		       if (found != 0) {  break; }
+		       printf("hello\n");
 		       // get array of dir entries in first block
 		       if (inode->dataptrs[i] < 0) { continue; }
 		       // look through all entries in first block
 		       int j;
 		       int seekloc = inode->dataptrs[i];
-		       //printf("reading new data block\n");
+		       printf("reading new data block\n");
 		       for (j = 0; j < 64; j++) {
 		 	   lseek(fd, seekloc, SEEK_SET);
-			   //printf("Seekloc: %d\n", seekloc);
+			   printf("Seekloc: %d\n", seekloc);
 			   rc = read(fd, dirent, sizeof(MFS_DirEnt_t));
 			   assert(rc >= 0);
-			   //printf("dirent: %s\ninum: %d\n", dirent->name, dirent->inum);
+			   printf("dirent: %s\ninum: %d\n", dirent->name, dirent->inum);
 			   if (strcmp(dirent->name, message.name) == 0) {
 			       found = 1;
 			       foundinode = dirent->inum;
@@ -235,6 +236,9 @@ int main (int argc, char *argv[]) {
 			   }
 			   seekloc += sizeof(MFS_DirEnt_t);
 		       }
+		    }
+		    if (foundinode == -1) {
+			printf("lookup failed\n");
 		    }
 		    reply.retval = foundinode;
 		}		
@@ -369,7 +373,7 @@ int main (int argc, char *argv[]) {
 	    { 
 		int datablock, dirnumber, i , j;
 		int found = 0;
-		MFS_Inode_t* dir = getInode(message.pinum);
+		MFS_Inode_t* dir = getInode(message.pinum);//parent
 		if (dir->type == MFS_REGULAR_FILE) {
 		    // can't write to non-directory
 		    reply.retval = -1;
@@ -392,7 +396,7 @@ int main (int argc, char *argv[]) {
 			*mappiece = mapinmem[i];
 			for (j = 0; j < 16; j++) {
 			    // use first empty space in first map
-			    printf("inptr: %d\n", mappiece->inptrs[j]);
+			    //printf("inptr: %d\n", mappiece->inptrs[j]);
 			    if (mappiece->inptrs[j] != -1) { continue; }
 			    //mappiece->inptrs[j] = (check->endoflog);
 			    inptr = j;
@@ -414,6 +418,7 @@ int main (int argc, char *argv[]) {
 			      found = 1;
 			      break;
 		         }
+			 lseek(fd, dir->dataptrs[j], SEEK_SET);
 		         for (i = 0; i < 64; i++) {
 		              if (found) { break; }
 			      rc = read(fd, dirent, sizeof(MFS_DirEnt_t));
@@ -424,6 +429,7 @@ int main (int argc, char *argv[]) {
 			         found = 1;
 			         break;
 		              }
+			      lseek(fd, sizeof(MFS_DirEnt_t), SEEK_CUR);
 		        }
 	    	     }  
 
@@ -435,6 +441,7 @@ int main (int argc, char *argv[]) {
 		     if (dirnumber == 0) {
 			// new data block allocated
 			MFS_DirEnt_t rootentries[64];
+			rootentries[0] = newentry;
 			for (i = 1; i < 64; i++) {
 		          MFS_DirEnt_t* entry = malloc(sizeof(MFS_DirEnt_t));
 		          entry->inum = -1;
@@ -459,6 +466,7 @@ int main (int argc, char *argv[]) {
 			lseek(fd, addr, SEEK_SET);
 			rc = write(fd, &newentry, sizeof(MFS_DirEnt_t));
 			assert(rc >= 0);
+			
 		     }
 		 
 		     // new inode to add
@@ -531,8 +539,18 @@ int main (int argc, char *argv[]) {
 		    lseek(fd, 0, SEEK_SET);
 		    rc = write(fd, &check, sizeof(MFS_Checkpoint_t));
 		    assert(rc >= 0);
+
+		    // update parent inode size
+		    dir->size += sizeof(MFS_DirEnt_t);
+		    int parentsegment = message.pinum / 16;
+		    MFS_IMPiece_t parentmap = mapinmem[parentsegment];
+		    int parentoffset = message.pinum % 16;
+		    int parentloc = parentmap.inptrs[parentoffset];
+		    lseek(fd, parentloc, SEEK_SET);
+		    rc = write(fd, &dir, sizeof(MFS_Inode_t));
+		    assert(rc >= 0);
+
 		    // update inode numbers
-		
 		    nextinodenum++;
 		    reply.retval = 0;
 		    fsync(fd);
@@ -542,7 +560,7 @@ int main (int argc, char *argv[]) {
 	    case UNLINK:
 	    {
 	        MFS_Inode_t* pinode  = getInode(message.pinum);
-		if (pinode->type == MFS_DIRECTORY && pinode->size <= 128) {
+		if (pinode == NULL || pinode->type != MFS_DIRECTORY) {
 		    reply.retval = -1;
 		}
 		else {
@@ -564,6 +582,7 @@ int main (int argc, char *argv[]) {
 			    // when one is found matching name, keep track of location
 			    currdir = entries[j];
 			    if (strcmp(currdir.name, message.name) == 0) {
+				printf("unlink file: %s\n", currdir.name);
 				datablock = i;
 				dirnumber = j;
 				found = 1;
@@ -583,8 +602,9 @@ int main (int argc, char *argv[]) {
 			//printf("type: %d\n", inode->type);
 			//printf("got inode\n");
 			// if it is of type dir make sure it is empty
+			printf("directory size: %d\n", inode->size);
 			if (inode->type == MFS_DIRECTORY && inode->size > 128) {
-			    printf("directory size: %d\n", inode->size);
+			    //printf("directory size: %d\n", inode->size);
 			    reply.retval = -1;
 			}
 			else {
@@ -609,6 +629,7 @@ int main (int argc, char *argv[]) {
 			    printf("updating parent inode\n");
 			    // update pinode to point to new block
 			    pinode->dataptrs[datablock] = check->endoflog;
+			    pinode->size -= sizeof(MFS_DirEnt_t);
 			    check->endoflog += sizeof(readdatablock);
 			    // write pinode to end of file
 			    lseek(fd, check->endoflog, SEEK_SET);
@@ -634,7 +655,7 @@ int main (int argc, char *argv[]) {
 			    lseek(fd, 0, SEEK_SET);
 			    rc = write(fd, &check, sizeof(check));
 			    assert(rc >= 0);
-			    reply.retval = 1;
+			    reply.retval = 0;
 			}
 		    }
 		}
